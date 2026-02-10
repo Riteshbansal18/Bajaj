@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const EMAIL = "your_official_chitkara_email@chitkara.edu.in";
+const EMAIL = "ritesh2510.be23@chitkara.edu.in";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
