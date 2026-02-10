@@ -3,18 +3,13 @@ const cors = require("cors");
 require("dotenv").config();
 const Groq = require("groq-sdk");
 
-const {
-  generateFibonacci,
-  getPrimes,
-  calculateLCM,
-  calculateHCF
-} = require("./utils/math");
+const math = require("./utils/math");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-const EMAIL = "ritesh2510.be23@chitkara.edu.in";
+const EMAIL = "your_official_chitkara_email@chitkara.edu.in";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
@@ -28,98 +23,96 @@ app.get("/health", (req, res) => {
 });
 
 app.post("/bfhl", async (req, res) => {
-  try {
-    const body = req.body;
+  const body = req.body;
 
-    if (!body || Object.keys(body).length !== 1) {
-      return sendError(res, 400, "Request must contain exactly one key");
+  if (!body || Object.keys(body).length !== 1) {
+    return res.status(400).json({
+      is_success: false,
+      official_email: EMAIL,
+      error: "Invalid request"
+    });
+  }
+
+  const key = Object.keys(body)[0];
+  const value = body[key];
+
+  try {
+    let output;
+
+    if (key === "fibonacci") {
+      if (typeof value !== "number" || value < 0)
+        throw new Error("Invalid fibonacci input");
+
+      output = math.generateFibonacci(value);
     }
 
-    const key = Object.keys(body)[0];
-    const value = body[key];
+    else if (key === "prime") {
+      if (!Array.isArray(value))
+        throw new Error("Invalid prime input");
 
-    let result;
+      output = math.getPrimes(value);
+    }
 
-    switch (key) {
-      case "fibonacci":
-        if (typeof value !== "number" || value < 0)
-          return sendError(res, 400, "Invalid fibonacci input");
-        result = generateFibonacci(value);
-        break;
+    else if (key === "lcm") {
+      if (!Array.isArray(value))
+        throw new Error("Invalid lcm input");
 
-      case "prime":
-        if (!Array.isArray(value))
-          return sendError(res, 400, "Prime input must be array");
-        result = getPrimes(value);
-        break;
+      output = math.calculateLCM(value);
+    }
 
-      case "lcm":
-        if (!Array.isArray(value))
-          return sendError(res, 400, "LCM input must be array");
-        result = calculateLCM(value);
-        break;
+    else if (key === "hcf") {
+      if (!Array.isArray(value))
+        throw new Error("Invalid hcf input");
 
-      case "hcf":
-        if (!Array.isArray(value))
-          return sendError(res, 400, "HCF input must be array");
-        result = calculateHCF(value);
-        break;
+      output = math.calculateHCF(value);
+    }
 
-      case "AI":
-        if (typeof value !== "string")
-          return sendError(res, 400, "AI input must be string");
-        result = await getAIResponse(value);
-        break;
+    else if (key === "AI") {
+      if (typeof value !== "string")
+        throw new Error("Invalid AI input");
 
-      default:
-        return sendError(res, 400, "Invalid key");
+      output = await askAI(value);
+    }
+
+    else {
+      throw new Error("Invalid key");
     }
 
     res.status(200).json({
       is_success: true,
       official_email: EMAIL,
-      data: result
+      data: output
     });
 
   } catch (err) {
-    res.status(500).json({
+    res.status(400).json({
       is_success: false,
       official_email: EMAIL,
-      error: "Internal server error"
+      error: err.message
     });
   }
 });
 
-function sendError(res, statusCode, message) {
-  return res.status(statusCode).json({
-    is_success: false,
-    official_email: EMAIL,
-    error: message
-  });
-}
-async function getAIResponse(question) {
+async function askAI(question) {
   try {
-    const chatCompletion = await groq.chat.completions.create({
+    const response = await groq.chat.completions.create({
       messages: [
-        { role: "system", content: "Answer in one word only." },
+        { role: "system", content: "Give answer in one word only." },
         { role: "user", content: question }
       ],
       model: "llama-3.1-8b-instant"
     });
 
-    const text = chatCompletion.choices[0].message.content;
-
+    const text = response.choices[0].message.content;
     return text.trim().split(" ")[0];
 
   } catch (err) {
-    console.log("Groq Full Error:", err.response?.data || err.message);
     return "Error";
   }
 }
 
-
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("Server started on port " + PORT);
 });
